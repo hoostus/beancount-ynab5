@@ -206,11 +206,16 @@ if __name__ == '__main__':
     inflows_category_id = r[0]
 
     # TODO: duplicate prevention
-    imported_transactions = set()
-    # go through beancount and add all the transactions that already have a ynab-id...
+    seen_transactions = set()
+    # TODO: go through beancount and add all the transactions that already have a ynab-id...
 
     for t in cleared:
         t = make_transaction(t)
+
+        # Deduplication -- don't process transactions we've already seen
+        if t.id in seen_transactions:
+            logging.info(f'Skipping duplicate transaction: {t.date} {t.payee_name}')
+            continue
 
         # TODO: Skip off budget accounts. They don't have enough information to make
         # a double-entry (they only have one leg)
@@ -222,6 +227,10 @@ if __name__ == '__main__':
 
         print(f'{t.date} * "{t.payee_name}" {fmt_memo(t.memo)}')
         print(f'  ynab-id: "{t.id}"')
+        # To avoid duplicate imports for transfers we need to account for
+        # both our id and the other leg of the transfer's id
+        seen_transactions.add(t.id)
+        seen_transactions.add(t.transfer_transaction_id)
         print(f'  {to_bean(t.account_id):<50}{from_milli(t.amount):>10} {commodity}')
         # Next check if we are looking at a split transaction or a normal one...
         if t.subtransactions:
@@ -230,6 +239,9 @@ if __name__ == '__main__':
                 # is telling us "decrease the budget by this amount" but beancount wants us to say
                 # "increase our expenses by this amount"
                 print(f'  {get_target_account(sub):<50}{-from_milli(sub.amount):>10} {commodity} ; {sub.memo}')
+                # We need to deduplicate any transfers that happen in a subtransaction...
+                seen_transactions.add(sub.transfer_transaction_id)
         else:
             print(f'  {get_target_account(t)}')
+
         print()
