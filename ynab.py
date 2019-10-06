@@ -131,7 +131,7 @@ if __name__ == '__main__':
     parser.add_argument('--account-prefix', help='Prefix in beancount of YNAB accounts.', default='Assets')
     parser.add_argument('--budget-category-prefix', help='Prefix in beancount of YNAB budget categories.', default='Expenses')
     parser.add_argument('--list-ynab-ids', action='store_true', default=False, help='Instead of running normally. Simply list the YNAB ids for each budget category.')
-    parser.add_argument('--skip-opening-balances', action='store_true', default=False, help='Ignore any opening balance statements in YNAB.')
+    parser.add_argument('--skip-starting-balances', action='store_true', default=False, help='Ignore any starting balance statements in YNAB.')
     args = parser.parse_args()
     if args.since:
         args.since = datetime.datetime.strptime(args.since, "%Y-%m-%d")
@@ -186,6 +186,13 @@ if __name__ == '__main__':
             bean_default = id
         return account_mapping.get(id, bean_default)
 
+    r = [x.id for x in ynab_category_groups.values() if x.name == ynab_normalize('Internal Master Category')]
+    assert len(r) == 1
+    ynab_internal_master_category_id = r[0]
+    r = [x.id for x in ynab_categories.values() if x.name == ynab_normalize('Inflows') and x.category_group_id == ynab_internal_master_category_id]
+    assert len(r) == 1
+    inflows_category_id = r[0]
+
     for t in cleared:
         t = make_transaction(t)
 
@@ -193,9 +200,12 @@ if __name__ == '__main__':
         # a double-entry (they only have one leg)
         if not t.category_id: continue
 
+        if args.skip_starting_balances:
+            if t.payee_name == 'Starting Balance' and t.category_id == inflows_category_id:
+                continue
+
         # de-dup
         # transfers
-        # skip opening balances?
 
         print(f'{t.date} * "{t.payee_name}" {fmt_memo(t.memo)}')
         print(f'  ynab-id: "{t.id}"')
