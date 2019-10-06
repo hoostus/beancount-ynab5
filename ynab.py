@@ -53,9 +53,7 @@ def get_transactions(auth, budget_id, since=None):
         transactions = response.json()
         return transactions['data']
 
-def build_account_mapping(bean_filename):
-        entries, errors, options = beancount.loader.load_file(bean_filename)
-
+def build_account_mapping(entries):
         mapping = {}
 
         for entry in entries:
@@ -123,6 +121,13 @@ def get_target_account(txn):
     else:
         return to_bean(txn.transfer_account_id)
 
+def get_existing_ynab_transaction_ids(entries):
+    seen = set()
+    for e in entries:
+        if isinstance(e, beancount.core.data.Transaction):
+            seen.add(e.meta['ynab-id'])
+    return seen
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(
@@ -153,8 +158,14 @@ if __name__ == '__main__':
     logging.info('Fetching budget metadata')
     budget = get_budget(auth_header, budget=args.budget)
 
+    logging.info('Parsing beancount file')
+    beancount_entries, beancount_errors, beancount_options = beancount.loader.load_file(args.bean)
+
+    logging.info('Loading YNAB IDs for existing transactions in beancount')
+    seen_transactions = get_existing_ynab_transaction_ids(beancount_entries)
+
     logging.info('Loading YNAB account UUIDs from beancount file')
-    account_mapping = build_account_mapping(args.bean)
+    account_mapping = build_account_mapping(beancount_entries)
 
     logging.info('Fetching YNAB account metadata')
     ynab_accounts = get_ynab_accounts(auth_header, budget.id)
@@ -204,10 +215,6 @@ if __name__ == '__main__':
     r = [x.id for x in ynab_categories.values() if x.name == ynab_normalize('Inflows') and x.category_group_id == ynab_internal_master_category_id]
     assert len(r) == 1
     inflows_category_id = r[0]
-
-    # TODO: duplicate prevention
-    seen_transactions = set()
-    # TODO: go through beancount and add all the transactions that already have a ynab-id...
 
     for t in cleared:
         t = make_transaction(t)
