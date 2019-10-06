@@ -53,7 +53,6 @@ def get_transactions(auth, budget_id, since=None):
         response = requests.get(f'{API}/{budget_id}/transactions', headers=auth)
         response.raise_for_status()
         transactions = response.json()
-        print(response.text)
         return transactions['data']
 
 def build_account_mapping(bean_filename):
@@ -119,6 +118,12 @@ def list_ynab_ids(account_mapping, accounts, groups, categories):
 
     pretty_print(accounts, formatter=lambda x: x.name)
     pretty_print(categories, formatter=lambda x: fmt_ynab_category(x.id, groups, categories))
+
+def get_target_account(txn):
+    if txn.category_id:
+        return to_bean(txn.category_id)
+    else:
+        return to_bean(txn.transfer_account_id)
 
 if __name__ == '__main__':
     import argparse
@@ -230,7 +235,7 @@ if __name__ == '__main__':
                 # we have to reverse the sign on the amount of the subtransaction because YNAB's value
                 # is telling us "decrease the budget by this amount" but beancount wants us to say
                 # "increase our expenses by this amount"
-                print(f'  {to_bean(sub.category_id)}{-from_milli(sub.amount):>30} {commodity} ; {sub.memo}')
+                print(f'  {get_target_account(t)}{-from_milli(sub.amount):>30} {commodity} ; {sub.memo}')
         else:
-            print(f'  {to_bean(t.category_id)}')
+            print(f'  {get_target_account(t)}')
         print()
