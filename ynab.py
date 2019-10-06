@@ -1,5 +1,6 @@
 import requests
 import datetime
+import logging
 from collections import namedtuple
 from decimal import Decimal
 import sys
@@ -8,6 +9,8 @@ import string
 
 import beancount.loader
 import beancount.core
+
+logging.basicConfig(format='%(asctime)-15s %(message)s')
 
 API = 'https://api.youneedabudget.com/v1/budgets'
 
@@ -125,6 +128,8 @@ if __name__ == '__main__':
     parser.add_argument('--since', help='Format: YYYY-MM-DD; 2016-12-30. Only process transactions after this date. This will include transactions that occurred exactly on this date.')
     parser.add_argument('--ynab-token', help='Your YNAB API token.', required=True)
     parser.add_argument('--budget', help='Name of YNAB budget to use. Only needed if you have multiple budgets.')
+    parser.add_argument('--account-prefix', help='Prefix in beancount of YNAB accounts.', default='Assets')
+    parser.add_argument('--budget-category-prefix', help='Prefix in beancount of YNAB budget categories.', default='Expenses')
     parser.add_argument('--list-ynab-ids', action='store_true', default=False, help='Instead of running normally. Simply list the YNAB ids for each budget category.')
     parser.add_argument('--skip-opening-balances', action='store_true', default=False, help='Ignore any opening balance statements in YNAB.')
     args = parser.parse_args()
@@ -134,10 +139,15 @@ if __name__ == '__main__':
     # to actually log in to YNAB we need to add this header to all requests.
     auth_header = {'Authorization': f'Bearer {args.ynab_token}'}
 
+    logging.info('Fetching budget metadata')
     budget = get_budget(auth_header, budget=args.budget)
 
+    logging.info('Loading YNAB account UUIDs from beancount file')
     account_mapping = build_account_mapping(args.bean)
+
+    logging.info('Fetching YNAB account metadata')
     ynab_accounts = get_ynab_accounts(auth_header, budget.id)
+    logging.info('Fetching YNAB budget category metadata')
     ynab_category_groups, ynab_categories = get_ynab_categories(auth_header, budget.id)
 
     if args.list_ynab_ids:
@@ -168,7 +178,13 @@ if __name__ == '__main__':
             return ''
 
     def to_bean(id):
-        return account_mapping.get(id, id)
+        if id in ynab_accounts:
+            bean_default = f'{args.account_prefix}:{ynab_accounts[id].name}'
+        elif id in ynab_categories:
+            bean_default = f'{args.budget_category_prefix}:{fmt_ynab_category(id, ynab_category_groups, ynab_categories)}'
+        else:
+            bean_default = id
+        return account_mapping.get(id, bean_default)
 
     for t in cleared:
         t = make_transaction(t)
