@@ -220,6 +220,10 @@ if __name__ == '__main__':
     for t in cleared:
         t = make_transaction(t)
 
+        if args.skip_starting_balances:
+            if t.payee_name == 'Starting Balance' and t.category_id == inflows_category_id:
+                logging.info(f'Skipping Starting Balance statement: {t.date} {to_bean(t.account_id)}')
+                continue
 
         # Deduplication -- don't process transactions we've already seen
         if t.id in seen_transactions:
@@ -233,9 +237,7 @@ if __name__ == '__main__':
         # a double-entry (they only have one leg)
         # if not t.category_id: continue
 
-        if args.skip_starting_balances:
-            if t.payee_name == 'Starting Balance' and t.category_id == inflows_category_id:
-                continue
+        # TODO: how to deal with income?
 
         print(f'{t.date} * "{t.payee_name}" {fmt_memo(t.memo)}')
         print(f'  ynab-id: "{t.id}"')
