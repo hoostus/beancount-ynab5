@@ -3,6 +3,8 @@ import datetime
 from collections import namedtuple
 from decimal import Decimal
 import sys
+import re
+import string
 
 import beancount.loader
 import beancount.core
@@ -19,7 +21,6 @@ def make_transaction(n):
     sub = [make_tuple('Subtransaction', x) for x in s]
     n['subtransactions'] = sub
     return make_tuple('Transaction', n)
-
 
 def make_tuple(name, d):
     return namedtuple(name, d.keys())(*d.values())
@@ -62,36 +63,58 @@ def build_account_mapping(bean_filename):
                     mapping[entry.meta['ynab-id']] = entry.account
         return mapping
 
-def list_ynab_ids(auth, budget_id, account_mapping):
-    def pretty_print(ids):
-        for item in sorted(ids.items(), key=lambda x: x[1]):
-            print(item[0], item[1])
-            bean_account = account_mapping.get(item[0], '(none)')
-            print(' ' * 36, bean_account)
-
-    ids = {}
-
+def get_ynab_accounts(auth, budget_id):
+    result = {}
     response = requests.get(f'{API}/{budget_id}/accounts', headers=auth)
     response.raise_for_status()
     accounts = response.json()['data']['accounts']
     for a in accounts:
+        a['name'] = ynab_normalize(a['name'])
         account = make_tuple('Account', a)
-        ids[account.id] = account.name
-    pretty_print(ids)
+        result[account.id] = account
+    return result
 
-    print()
-
-    ids = {}
+def get_ynab_categories(auth, budget_id):
+    category_result = {}
+    group_result = {}
     response = requests.get(f'{API}/{budget_id}/categories', headers=auth)
     response.raise_for_status()
     category_groups = response.json()['data']['category_groups']
     for g in category_groups:
+        g['name'] = ynab_normalize(g['name'])
         group = make_tuple('CategoryGroup', g)
+        group_result[group.id] = group
         for c in group.categories:
+            c['name'] = ynab_normalize(c['name'])
             category = make_tuple('Category', c)
-            ids[category.id] = f'{group.name}:{category.name}'
-    pretty_print(ids)
+            category_result[category.id] = category
 
+    return group_result, category_result
+
+def ynab_normalize(name):
+    table = str.maketrans('', '', string.punctuation)
+    no_punctuation = name.translate(table)
+    no_spaces = no_punctuation.replace(' ', '-')
+    return no_spaces
+
+def fmt_ynab_category(id, groups, categories):
+    c = categories[id]
+    group_id = c.category_group_id
+    g = groups[group_id]
+
+    n = f'{g.name}:{c.name}'
+    return n
+
+def list_ynab_ids(account_mapping, accounts, groups, categories):
+    def pretty_print(ids, formatter):
+        for item in sorted(ids.items(), key=lambda x: x[1]):
+            print(item[0], end=' ')
+            print(formatter(item[1]))
+            bean_account = account_mapping.get(item[0], '(none)')
+            print(' ' * 36, bean_account)
+
+    pretty_print(accounts, formatter=lambda x: x.name)
+    pretty_print(categories, formatter=lambda x: fmt_ynab_category(x.id, groups, categories))
 
 if __name__ == '__main__':
     import argparse
@@ -114,9 +137,11 @@ if __name__ == '__main__':
     budget = get_budget(auth_header, budget=args.budget)
 
     account_mapping = build_account_mapping(args.bean)
+    ynab_accounts = get_ynab_accounts(auth_header, budget.id)
+    ynab_category_groups, ynab_categories = get_ynab_categories(auth_header, budget.id)
 
     if args.list_ynab_ids:
-        list_ynab_ids(auth_header, budget.id, account_mapping)
+        list_ynab_ids(account_mapping, ynab_accounts, ynab_category_groups, ynab_categories)
         sys.exit(0)
 
     transactions = get_transactions(auth_header, budget.id, since=args.since)

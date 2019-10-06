@@ -1,5 +1,5 @@
 # beancount-ynab5
- Import YNAB5 transactions into beancount, a plaintext accounting system
+ Import YNAB5 transactions into beancount, a plaintext accounting system.
 
 # What it does.
 
@@ -8,6 +8,10 @@ YNAB5 budget into a beancount file. This allows you to use YNAB5 for its
 budgeting, automatically pulling transactions from various US financial institutions,
 and mobile app. But you can also sync it to beancount, which has support for
 multiple currencies, investments, and other things.
+
+Why only cleared transactions? This importer doesn't handle updating a transaction
+that you've already imported. By waiting until the transaction is cleared we (hopefully)
+avoid situations where we import something that then later gets updated.
 
 # How to make it work.
 
@@ -18,6 +22,23 @@ Instructions on how to do this are on [YNAB's API website.](https://api.youneeda
 The short version: Go to "My Account" then click on "Developer Settings".
 
 Write down the very long token somewhere. You'll need it later.
+
+## Automatic account mapping
+
+Caveats:
+- punctuation gets dropped
+- spaces get turned into hyphen '-'
+
+In the default category list that means
+
+*Rent & Mortgage* in the group *Immediate Obligations* becomes
+*Immediate-Obligations:RentMortgage*
+
+A few to watch out for:
+
+# Immediate-Obligations:RentMortgage (*Rent & Mortgage*)
+# True-Expenses:RentersHome-Insurance (*Renter's/Home Insurance*)
+# Immediate-Obligations:Interest--Fees (*Interest & Fees*)
 
 ## Add a ynab-id to your beancount accounts.
 
