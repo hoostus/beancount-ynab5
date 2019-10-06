@@ -228,14 +228,14 @@ if __name__ == '__main__':
 
         print(f'{t.date} * "{t.payee_name}" {fmt_memo(t.memo)}')
         print(f'  ynab-id: "{t.id}"')
-        print(f'  {to_bean(t.account_id)}{from_milli(t.amount):>30} {commodity}')
+        print(f'  {to_bean(t.account_id):<50}{from_milli(t.amount):>10} {commodity}')
         # Next check if we are looking at a split transaction or a normal one...
         if t.subtransactions:
             for sub in t.subtransactions:
                 # we have to reverse the sign on the amount of the subtransaction because YNAB's value
                 # is telling us "decrease the budget by this amount" but beancount wants us to say
                 # "increase our expenses by this amount"
-                print(f'  {get_target_account(t)}{-from_milli(sub.amount):>30} {commodity} ; {sub.memo}')
+                print(f'  {get_target_account(sub):<50}{-from_milli(sub.amount):>10} {commodity} ; {sub.memo}')
         else:
             print(f'  {get_target_account(t)}')
         print()
