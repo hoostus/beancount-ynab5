@@ -53,6 +53,7 @@ def get_transactions(auth, budget_id, since=None):
         response = requests.get(f'{API}/{budget_id}/transactions', headers=auth)
         response.raise_for_status()
         transactions = response.json()
+        print(response.text)
         return transactions['data']
 
 def build_account_mapping(bean_filename):
@@ -162,7 +163,8 @@ if __name__ == '__main__':
     # We only import transactions once they have been cleared (reconciled) on YNAB. This hopefully removes
     # the need to update things we've already downloaded. That is, we want to treat cleared transactions as immutable
     # but uncleared transactions are still mutable.
-    cleared = [t for t in transactions['transactions'] if t['cleared'] == 'cleared']
+    # TODO: Is it necessary to skip deleted transactions here?
+    cleared = [t for t in transactions['transactions'] if t['cleared'] == 'cleared' and not t['deleted']]
 
     # TODO: how do we get this from YNAB and compare against beancount?
     commodity = budget.currency_format.iso_code
@@ -193,19 +195,31 @@ if __name__ == '__main__':
     assert len(r) == 1
     inflows_category_id = r[0]
 
+    # TODO: duplicate prevention
+    imported_transactions = set()
+    # go through beancount and add all the transactions that already have a ynab-id...
+
     for t in cleared:
         t = make_transaction(t)
 
         # Skip off budget accounts. They don't have enough information to make
         # a double-entry (they only have one leg)
-        if not t.category_id: continue
+        # if not t.category_id: continue
 
         if args.skip_starting_balances:
             if t.payee_name == 'Starting Balance' and t.category_id == inflows_category_id:
                 continue
 
-        # de-dup
         # transfers
+        if t.transfer_account_id:
+            # TODO: handle transfer between accounts
+            # YNAB generates 2 transactions for these, one in each account.
+            # Each of those transactions has an transfer_transaction_id pointing
+            # at the other.
+            pass
+
+        # TODO: can you have transfer INSIDE a split transaction? Ugh.
+        # After testing: yes, apparently you can.
 
         print(f'{t.date} * "{t.payee_name}" {fmt_memo(t.memo)}')
         print(f'  ynab-id: "{t.id}"')
