@@ -207,24 +207,13 @@ if __name__ == '__main__':
     for t in cleared:
         t = make_transaction(t)
 
-        # Skip off budget accounts. They don't have enough information to make
+        # TODO: Skip off budget accounts. They don't have enough information to make
         # a double-entry (they only have one leg)
         # if not t.category_id: continue
 
         if args.skip_starting_balances:
             if t.payee_name == 'Starting Balance' and t.category_id == inflows_category_id:
                 continue
-
-        # transfers
-        if t.transfer_account_id:
-            # TODO: handle transfer between accounts
-            # YNAB generates 2 transactions for these, one in each account.
-            # Each of those transactions has an transfer_transaction_id pointing
-            # at the other.
-            pass
-
-        # TODO: can you have transfer INSIDE a split transaction? Ugh.
-        # After testing: yes, apparently you can.
 
         print(f'{t.date} * "{t.payee_name}" {fmt_memo(t.memo)}')
         print(f'  ynab-id: "{t.id}"')
