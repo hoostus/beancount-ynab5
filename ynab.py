@@ -223,6 +223,9 @@ if __name__ == '__main__':
         if t.id in seen_transactions:
             logging.info(f'Skipping duplicate transaction: {t.date} {t.payee_name}')
             continue
+        if t.transfer_transaction_id in seen_transactions:
+            logging.info(f'Skipping duplicate transfer transaction: {t.date} {t.payee_name}')
+            continue
 
         # TODO: Skip off budget accounts. They don't have enough information to make
         # a double-entry (they only have one leg)
