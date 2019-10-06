@@ -10,8 +10,6 @@ import string
 import beancount.loader
 import beancount.core
 
-logging.basicConfig(format='%(asctime)-15s %(message)s')
-
 API = 'https://api.youneedabudget.com/v1/budgets'
 
 def make_budget(n):
@@ -138,9 +136,16 @@ if __name__ == '__main__':
     parser.add_argument('--budget-category-prefix', help='Prefix in beancount of YNAB budget categories.', default='Expenses')
     parser.add_argument('--list-ynab-ids', action='store_true', default=False, help='Instead of running normally. Simply list the YNAB ids for each budget category.')
     parser.add_argument('--skip-starting-balances', action='store_true', default=False, help='Ignore any starting balance statements in YNAB.')
+    parser.add_argument('--debug', action='store_true', default=False)
     args = parser.parse_args()
     if args.since:
         args.since = datetime.datetime.strptime(args.since, "%Y-%m-%d")
+
+    if args.debug:
+        log_level = logging.INFO
+    else:
+        log_level = logging.WARN
+    logging.basicConfig(format='%(asctime)-15s %(message)s', level=log_level)
 
     # to actually log in to YNAB we need to add this header to all requests.
     auth_header = {'Authorization': f'Bearer {args.ynab_token}'}
