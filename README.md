@@ -4,14 +4,14 @@
 
 # What it does.
 
-*beancount-ynab5* will import **cleared** transactions from your cloud-based
+*beancount-ynab5* will import **reconciled** transactions from your cloud-based
 YNAB5 budget into a beancount file. This allows you to use YNAB5 for its
 budgeting, for automatically pulling transactions from various US financial
 institutions, and for its mobile app. But you can also sync it to beancount,
 which has support for multiple currencies, investments, and other things.
 
-Why only cleared transactions? This importer doesn't handle updating a transaction
-that you've already imported. By waiting until the transaction is cleared we (hopefully)
+Why only reconciled transactions? This importer doesn't handle updating a transaction
+that you've already imported. By waiting until the transaction is reconciled we (hopefully)
 avoid situations where we import something that then later gets updated.
 
 # Requirements.
@@ -145,16 +145,14 @@ the command line option **--skip-starting-balances**.
 
 How does income work?
 the --since command line option
-What about reconciled transactions? Are those different than cleared?
-    Should we switch to using those?
 What about repeating transactions?
 Change Inflows to use bean_config['income'] instead of Expenses
 
 YNAB comes with several special accounts.
 
-Internal Master Category:Deferred Income SubCategory
-Internal Master Category:Inflows
-Internal Master Category:Uncategorized
+* Internal Master Category:Inflows
+* Internal Master Category:Deferred Income SubCategory
+* Internal Master Category:Uncategorized
 
 Credit Card Payments:Timo Mastercard
 
