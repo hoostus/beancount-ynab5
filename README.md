@@ -17,6 +17,14 @@ avoid situations where we import something that then later gets updated.
 # Requirements.
 
 * requests: https://pypi.org/project/requests/
+* aiohttp: https://pypi.org/project/aiohttp/
+
+You must have *one* of these installed. You don't need both. If you have
+aiohttp installed, then the importer will make parallel requests to YNAB,
+which speeds things up somewht.
+
+The command line options **--enable-async-fetch** and **--disable-async-fetch**
+will allow you to override the default behaviour.
 
 # Running it.
 
@@ -71,7 +79,7 @@ The importer needs to map accounts & budget categories between YNAB and beancoun
 You have two options.
 
 1. Rely on the default mapping algorithm.
-2. Add metadata to the beancount file explicitly mapping accounts.
+1. Add metadata to the beancount file explicitly mapping accounts.
 
 ## The default algorithm.
 
@@ -103,6 +111,9 @@ of the UUID of the YNAB account you want it to map to.
 
     2016-01-01 open Expenses:Monthly:Phone
         ynab-id: "9a2fb967-974a-4040-a584-0234d1de7abb"
+
+You can mix & match the two approaches. You can add **ynab-id** to some accounts
+but rely on the default algorithm for other accounts.
 
 How do you get that UUID? By using the importer's **--list-ynab-ids** mode.
 
@@ -139,21 +150,32 @@ the command line option **--skip-starting-balances**.
 
 # Income
 
-(todo)
+The biggest disconnect between YNAB and beancount is how they handle income.
+YNAB doesn't differentiate between different sources of income. They are all just
+"income". Salary, interest, dividends...they are all just income as far as YNAB
+is concerned.
+
+That means the importer will place all income into a single category. By default
+it will all go into **Income:Internal-Master-Category:Inflows**.
+
+At the moment, the importer doesn't do anything smart to help you out. If you
+don't want all of your income to go into a single category, then you will
+need to manually edit the resulting import statements.
+
+## Reconciling
+
+TODO: explain how reconciling in YNAB fits in with the importer.
 
 # TODO
 
-How does income work?
-the --since command line option
-What about repeating transactions?
-Change Inflows to use bean_config['income'] instead of Expenses
-
-YNAB comes with several special accounts.
-
-* Internal Master Category:Inflows
-* Internal Master Category:Deferred Income SubCategory
-* Internal Master Category:Uncategorized
-
-Credit Card Payments:Timo Mastercard
-
-and off-budget accounts.
+* the --since command line option (or server knowledge?)
+* What about repeating transactions? Are those handled properly?
+* YNAB comes with several special accounts. I've only seen the Inflows one used.
+    So I'm not sure what's up with the others.
+    * Internal Master Category:Inflows
+    * Internal Master Category:Deferred Income SubCategory
+    * Internal Master Category:Uncategorized
+* YNAB creates a special category for credit card payments
+    (e.g. *Credit Card Payments:Timo Mastercard*). I haven't looked into how
+    exactly that works.
+* Do we just ignore Off-budget accounts?
