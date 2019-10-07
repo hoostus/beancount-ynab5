@@ -2,6 +2,23 @@
  Import YNAB5 transactions from the cloud into beancount,
  a plaintext accounting system.
 
+Table of Contents
+=================
+   * [What it does.](#what-it-does)
+   * [Requirements.](#requirements)
+   * [Running it.](#running-it)
+      * [Get a Personal Access Token for your YNAB account.](#get-a-personal-access-token-for-your-ynab-account)
+      * [YNAB Rate Limits](#ynab-rate-limits)
+   * [Mapping accounts between YNAB and beancount.](#mapping-accounts-between-ynab-and-beancount)
+      * [The default algorithm.](#the-default-algorithm)
+      * [Add a ynab-id to your beancount accounts.](#add-a-ynab-id-to-your-beancount-accounts)
+   * [Skipping 'Starting Balance' statements in YNAB.](#skipping-starting-balance-statements-in-ynab)
+   * [Income](#income)
+      * [Reconciling](#reconciling)
+   * [YNAB's Off Budget (aka Tracking) Accounts](#ynabs-off-budget-aka-tracking-accounts)
+   * [TODO](#todo)
+
+
 # What it does.
 
 *beancount-ynab5* will import **reconciled** transactions from your cloud-based
@@ -198,7 +215,7 @@ You will need to manually edit the imported data and fix this.
 
 # TODO
 
-* the --since command line option (or server knowledge?)
+* Implement the --since command line option (or server knowledge?)
 * YNAB comes with several special accounts. I've only seen the Inflows one used.
     So I'm not sure what's up with the others.
     * Internal Master Category:Inflows
