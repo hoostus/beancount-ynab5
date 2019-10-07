@@ -5,12 +5,25 @@ from decimal import Decimal
 import sys
 import re
 import string
+import argparse
 
 import beancount.loader
 import beancount.core
 
 import time
-import requests
+import asyncio
+
+try:
+    import requests
+except ImportError:
+    requests = None
+
+try:
+    import aiohttp
+except ImportError:
+    aiohttp = None
+
+assert requests or aiohhtp, "Must have either the requests module installed or the aiohttp module isntalled."
 
 API = 'https://api.youneedabudget.com/v1/budgets'
 
@@ -51,21 +64,24 @@ def get_budget(auth, budget=None):
     d = response.json()
     return budget_from_json(budget, d['data']['budgets'])
 
+# Unlike the other YNAB fetchers, this returns the raw JSON instead of the
+# converted namedtuples. Should we change this to do the same? Make this a
+# generator?
 def get_transactions(auth, budget_id, since=None):
-        # TODO: possible query parameters: since_date, type, last_knowledge_of_server
-        response = requests.get(f'{API}/{budget_id}/transactions', headers=auth)
-        response.raise_for_status()
-        transactions = response.json()
-        return transactions['data']['transactions']
+    # TODO: possible query parameters: since_date, type, last_knowledge_of_server
+    response = requests.get(f'{API}/{budget_id}/transactions', headers=auth)
+    response.raise_for_status()
+    transactions = response.json()
+    return transactions['data']['transactions']
 
 def build_account_mapping(entries):
-        mapping = {}
+    mapping = {}
 
-        for entry in entries:
-            if isinstance(entry, beancount.core.data.Open):
-                if 'ynab-id' in entry.meta:
-                    mapping[entry.meta['ynab-id']] = entry.account
-        return mapping
+    for entry in entries:
+        if isinstance(entry, beancount.core.data.Open):
+            if 'ynab-id' in entry.meta:
+                mapping[entry.meta['ynab-id']] = entry.account
+    return mapping
 
 def accounts_from_json(json_accounts):
     result = {}
@@ -135,6 +151,7 @@ def get_target_account(txn):
         return to_bean(txn.transfer_account_id)
 
 def get_ynab_data(token, budget_name):
+    logging.info('Using regular fetcher for YNAB')
     # BENCHMARK: benchmark vanilla vs. async
     start_timing = time.time()
 
@@ -160,15 +177,14 @@ def get_ynab_data(token, budget_name):
     return budget, ynab_accounts, ynab_category_groups, ynab_categories, ynab_transactions
 
 def get_ynab_data_async(token, budget_name):
-    import aiohttp
-    import asyncio
+    logging.info('Using asynchronous fetcher for YNAB')
     start_timing = time.time()
 
     # to actually log in to YNAB we need to add this header to all requests.
     auth_header = {'Authorization': f'Bearer {token}'}
 
     async def fetch(url, session):
-        async with session.get(url, headers=auth) as response:
+        async with session.get(url, headers=auth_header) as response:
             return await response.json()
 
     async def run(r):
@@ -178,39 +194,36 @@ def get_ynab_data_async(token, budget_name):
         async with aiohttp.ClientSession(raise_for_status=True) as session:
             # We have to load the budget metadata first, to look up the ID
             # for the budget name we are given
-            async with session.get(API, headers=auth) as response:
+            async with session.get(API, headers=auth_header) as response:
                 d = await response.json()
-                b = [a for a in d['data']['budgets'] if a['name'] == budget_name]
-                budget = b[0]
-                budget_id = budget['id']
+                budget = budget_from_json(budget_name, d['data']['budgets'])
 
                 # Then we can do the next 3 in parallel.
-                task = asyncio.ensure_future(fetch(f'{API}/{budget_id}/accounts', session))
+                task = asyncio.ensure_future(fetch(f'{API}/{budget.id}/accounts', session))
                 tasks.append(task)
 
-                task = asyncio.ensure_future(fetch(f'{API}/{budget_id}/categories', session))
+                task = asyncio.ensure_future(fetch(f'{API}/{budget.id}/categories', session))
                 tasks.append(task)
 
-                task = asyncio.ensure_future(fetch(f'{API}/{budget_id}/transactions', session))
+                task = asyncio.ensure_future(fetch(f'{API}/{budget.id}/transactions', session))
                 tasks.append(task)
 
             responses = await asyncio.gather(*tasks)
-            accounts = responses[0]['data']['accounts']
-            categories = responses[1]['data']['category_groups']
+            accounts = accounts_from_json(responses[0]['data']['accounts'])
+            category_groups, categories = categories_from_json(responses[1]['data']['category_groups'])
             transactions = responses[2]['data']['transactions']
 
-            return budget, accounts, categories, transactions
+            return budget, accounts, category_groups, categories, transactions
 
     loop = asyncio.get_event_loop()
     future = asyncio.ensure_future(run(4))
-    budget, accounts, categories, transactions = loop.run_until_complete(future)
+    budget, accounts, category_groups, categories, transactions = loop.run_until_complete(future)
 
     # BENCHMARK: benchmark vanilla vs. async
     end_timing = time.time()
     logging.info(f'YNAB http requests took: {end_timing - start_timing}')
 
-    return budget, ynab_accounts, ynab_category_groups, ynab_categories, ynab_transactions
-
+    return budget, accounts, category_groups, categories, transactions
 
 def get_existing_ynab_transaction_ids(entries):
     seen = set()
@@ -220,10 +233,14 @@ def get_existing_ynab_transaction_ids(entries):
             seen.add(e.meta['ynab-id'])
     return seen
 
+class NegateAction(argparse.Action):
+    def __call__(self, parser, ns, values, option):
+        setattr(ns, self.dest, option[2:9] != 'disable')
+
 if __name__ == '__main__':
-    import argparse
     parser = argparse.ArgumentParser(
-        description="Import from YNAB5 web app to beancount statements."
+        description="Import from YNAB5 web app to beancount statements.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument('bean', help='Path to the beancount file.')
 #    parser.add_argument('--since', help='Format: YYYY-MM-DD; 2016-12-30. Only process transactions after this date. This will include transactions that occurred exactly on this date.')
@@ -231,11 +248,16 @@ if __name__ == '__main__':
     parser.add_argument('--budget', help='Name of YNAB budget to use. Only needed if you have multiple budgets.')
     parser.add_argument('--list-ynab-ids', action='store_true', default=False, help='Instead of running normally. Simply list the YNAB ids for each budget category.')
     parser.add_argument('--skip-starting-balances', action='store_true', default=False, help='Ignore any starting balance statements in YNAB.')
-    parser.add_argument('--debug', action='store_true', default=False)
+    parser.add_argument('--debug', action='store_true', default=False, help='Print logging to stderr.')
+    parser.add_argument('--enable-async-fetch', '--disable-async-fetch', dest='async_fetch', action=NegateAction, default=(aiohttp is not None), nargs=0, help='Use aiohttp to fetch YNAB data in parallel.')
     args = parser.parse_args()
 #    if args.since:
 #        args.since = datetime.datetime.strptime(args.since, "%Y-%m-%d")
     args.since=None
+
+    if args.async_fetch and not aiohttp:
+        logging.error('Cannot specify --async-fetch if aiohttp is not installed.')
+        sys.exit(1)
 
     if args.debug:
         log_level = logging.INFO
@@ -255,7 +277,12 @@ if __name__ == '__main__':
     logging.info('Loading YNAB account UUIDs from beancount file')
     account_mapping = build_account_mapping(beancount_entries)
 
-    budget, ynab_accounts, ynab_category_groups, ynab_categories, ynab_transactions = get_ynab_data(args.ynab_token, args.budget)
+    if args.async_fetch:
+        fetcher = get_ynab_data_async
+    else:
+        fetcher = get_ynab_data
+
+    budget, ynab_accounts, ynab_category_groups, ynab_categories, ynab_transactions = fetcher(args.ynab_token, args.budget)
 
     if args.list_ynab_ids:
         list_ynab_ids(account_mapping, ynab_accounts, ynab_category_groups, ynab_categories)
