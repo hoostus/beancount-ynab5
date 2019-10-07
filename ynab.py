@@ -53,7 +53,7 @@ def get_transactions(auth, budget_id, since=None):
         response = requests.get(f'{API}/{budget_id}/transactions', headers=auth)
         response.raise_for_status()
         transactions = response.json()
-        return transactions['data']
+        return transactions['data']['transactions']
 
 def build_account_mapping(entries):
         mapping = {}
@@ -172,7 +172,7 @@ if __name__ == '__main__':
     # to actually log in to YNAB we need to add this header to all requests.
     auth_header = {'Authorization': f'Bearer {args.ynab_token}'}
 
-    logging.info('Fetching budget metadata')
+    logging.info('Fetching YNAB budget metadata')
     budget = get_budget(auth_header, budget=args.budget)
 
     logging.info('Fetching YNAB account metadata')
@@ -184,6 +184,7 @@ if __name__ == '__main__':
         list_ynab_ids(account_mapping, ynab_accounts, ynab_category_groups, ynab_categories)
         sys.exit(0)
 
+    logging.info('Fetching YNAB transactions')
     transactions = get_transactions(auth_header, budget.id, since=args.since)
 
     # BENCHMARK: benchmark vanilla vs. async
@@ -191,13 +192,7 @@ if __name__ == '__main__':
     logging.info(f'YNAB http requests took: {end_timing - start_timing}')
 
     # TODO: we can reuse this to make future fetches incremental. Where should we stash this?
-    server_knowledge = transactions['server_knowledge']
-
-    # We only import transactions once they have been cleared (reconciled) on YNAB. This hopefully removes
-    # the need to update things we've already downloaded. That is, we want to treat cleared transactions as immutable
-    # but uncleared transactions are still mutable.
-    # TODO: Is it necessary to skip deleted transactions here?
-    cleared = [t for t in transactions['transactions'] if t['cleared'] == 'cleared' and not t['deleted']]
+    # server_knowledge = transactions['server_knowledge']
 
     # TODO: how do we get this from YNAB and compare against beancount?
     commodity = budget.currency_format.iso_code
@@ -231,8 +226,11 @@ if __name__ == '__main__':
             bean_default = id
         return account_mapping.get(id, bean_default)
 
-
-    for t in cleared:
+    # We only import transactions once they have been reconciled on YNAB. This hopefully removes
+    # the need to update things we've already downloaded. That is, we want to treat cleared transactions as immutable
+    # but uncleared transactions are still mutable.
+    # TODO: Is it necessary to skip deleted transactions here?
+    for t in (t for t in transactions if t['cleared'] == 'reconciled' and not t['deleted']):
         t = make_transaction(t)
 
         if args.skip_starting_balances:
