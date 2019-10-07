@@ -27,12 +27,12 @@ probably want to tee it or redirect it to a file.
     2019-10-04 * "Starting Balance" 
         ynab-id: "b79660e1-6554-4dae-97be-9bf7b04764f3"
         Assets:Checking                                    100000000 VND
-        Expenses:Internal-Master-Category:Inflows
+        Income:Internal-Master-Category:Inflows
 
     2019-10-04 * "Starting Balance" 
         ynab-id: "b8bdf6d5-85fa-4e50-b0a9-d6579b9cb9ae"
         Assets:Wallet                                              0 VND
-        Expenses:Internal-Master-Category:Inflows
+        Income:Internal-Master-Category:Inflows
 
     2019-10-06 * "Blammo" 
         ynab-id: "08c9f5c0-c764-4c89-bc82-9437556ce316"
@@ -127,7 +127,7 @@ from nowhere.
     2019-10-04 * "Starting Balance" 
         ynab-id: "b79660e1-6554-4dae-97be-9bf7b04764f3"
         Assets:Checking                                    5,000 USD
-        Expenses:Internal-Master-Category:Inflows
+        Income:Internal-Master-Category:Inflows
 
 In many cases, you won't want to import these transaction. You may have an
 existing beancount history that accounts for the current value of the account.
