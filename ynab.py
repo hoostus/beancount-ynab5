@@ -138,7 +138,6 @@ if __name__ == '__main__':
     parser.add_argument('--since', help='Format: YYYY-MM-DD; 2016-12-30. Only process transactions after this date. This will include transactions that occurred exactly on this date.')
     parser.add_argument('--ynab-token', help='Your YNAB API token.', required=True)
     parser.add_argument('--budget', help='Name of YNAB budget to use. Only needed if you have multiple budgets.')
-    parser.add_argument('--account-prefix', help='Prefix in beancount of YNAB accounts.', default='Assets')
     parser.add_argument('--budget-category-prefix', help='Prefix in beancount of YNAB budget categories.', default='Expenses')
     parser.add_argument('--list-ynab-ids', action='store_true', default=False, help='Instead of running normally. Simply list the YNAB ids for each budget category.')
     parser.add_argument('--skip-starting-balances', action='store_true', default=False, help='Ignore any starting balance statements in YNAB.')
@@ -161,6 +160,8 @@ if __name__ == '__main__':
 
     logging.info('Parsing beancount file')
     beancount_entries, beancount_errors, beancount_options = beancount.loader.load_file(args.bean)
+    asset_prefix = beancount_options['name_assets']
+    expense_prefix = beancount_options['name_expenses']
 
     logging.info('Loading YNAB IDs for existing transactions in beancount')
     seen_transactions = get_existing_ynab_transaction_ids(beancount_entries)
@@ -203,9 +204,9 @@ if __name__ == '__main__':
 
     def to_bean(id):
         if id in ynab_accounts:
-            bean_default = f'{args.account_prefix}:{ynab_accounts[id].name}'
+            bean_default = f'{asset_prefix}:{ynab_accounts[id].name}'
         elif id in ynab_categories:
-            bean_default = f'{args.budget_category_prefix}:{fmt_ynab_category(id, ynab_category_groups, ynab_categories)}'
+            bean_default = f'{expense_prefix}:{fmt_ynab_category(id, ynab_category_groups, ynab_categories)}'
         else:
             bean_default = id
         return account_mapping.get(id, bean_default)
