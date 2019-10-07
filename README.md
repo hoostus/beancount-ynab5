@@ -145,6 +145,10 @@ the command line option **--skip-starting-balances**.
 
 How does income work?
 the --since command line option
+What about reconciled transactions? Are those different than cleared?
+    Should we switch to using those?
+What about repeating transactions?
+Change Inflows to use bean_config['income'] instead of Expenses
 
 YNAB comes with several special accounts.
 
