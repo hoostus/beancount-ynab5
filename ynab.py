@@ -72,6 +72,8 @@ def get_transactions(auth, budget_id, since=None):
     response = requests.get(f'{API}/{budget_id}/transactions', headers=auth)
     response.raise_for_status()
     transactions = response.json()
+#    with open('txn.json', 'w+') as f:
+#        f.write(response.text)
     return transactions['data']['transactions']
 
 def build_account_mapping(entries):
@@ -147,8 +149,12 @@ def list_ynab_ids(account_mapping, accounts, groups, categories):
 def get_target_account(txn):
     if txn.category_id:
         return to_bean(txn.category_id)
-    else:
+    elif txn.transfer_account_id:
         return to_bean(txn.transfer_account_id)
+    else:
+        # This can only happen with Tracking accounts. We can't generate
+        # a valid beancount entry, so we generate an error mesage.
+        return '; FIXME. Error could only generate one leg from YNAB data.'
 
 def get_ynab_data(token, budget_name):
     logging.info('Using regular fetcher for YNAB')
@@ -331,9 +337,23 @@ if __name__ == '__main__':
         t = make_transaction(t)
 
         if args.skip_starting_balances:
+            # This will skip starting balances in budget accounts but not tracking accounts
             if t.payee_name == 'Starting Balance' and t.category_id == inflows_category_id:
-                logging.info(f'Skipping Starting Balance statement: {t.date} {to_bean(t.account_id)}')
+                logging.info(f'Skipping Starting Balance statement in budget account: {t.date} {to_bean(t.account_id)}')
                 continue
+            # We also want to skip starting balances in tracking accounts. Tracking
+            # accounts won't have a category id
+            if t.payee_name == 'Starting Balance' and not t.category_id:
+                logging.info(f'Skipping Starting Balance statement in tracking account: {t.date} {to_bean(t.account_id)}')
+                continue
+
+        if not t.category_id and not t.transfer_account_id:
+            logging.warning(
+                f'Saw a transaction without a category or transfer account id.'
+                f' This means the resulting beancount output will be corrupted.'
+                f' Manually inspect the transaction and fix it.'
+                f' {t.date} {to_bean(t.account_id)} "{t.payee_name}" {from_milli(t.amount)}'
+            )
 
         # Deduplication -- don't process transactions we've already seen
         if t.id in seen_transactions:
@@ -342,10 +362,6 @@ if __name__ == '__main__':
         if t.transfer_transaction_id in seen_transactions:
             logging.info(f'Skipping duplicate transfer transaction: {t.date} {t.payee_name}')
             continue
-
-        # TODO: Skip off budget accounts. They don't have enough information to make
-        # a double-entry (they only have one leg)
-        # if not t.category_id: continue
 
         # TODO: how to deal with income?
 

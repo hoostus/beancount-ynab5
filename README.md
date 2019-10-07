@@ -164,12 +164,41 @@ need to manually edit the resulting import statements.
 
 ## Reconciling
 
-TODO: explain how reconciling in YNAB fits in with the importer.
+When you reconcile in YNAB, if your cleared balance and your working balance
+don't match up you can select "Create Adjustment & Finish". If you do this,
+YNAB will generate a transaction that will cause your cleared balance and
+working balance to match up. The transaction will look something like this:
+
+    2019-10-07 * "Reconciliation Balance Adjustment" "Entered automatically by YNAB"
+        ynab-id: "76972f80-1374-48ec-b28d-8b309900f976"
+        Assets:Wallet                                        -12 USD
+        Income:Internal-Master-Category:Inflows
+
+In particular, notice that the transaction is generated against your income.
+This is unlikely to be what you want to happen if you are using beancount.
+
+A better course is to create an additional transaction that will make the
+cleared balance and working balance match. For instance, create a transaction
+in YNAB that assigns $12 to a "Miscellaneous" expense.
+
+# YNAB's Off Budget (aka Tracking) Accounts
+
+YNAB allows you to have Tracking accounts, that aren't part of its normal
+budgeting workflow. These are useful for things like Mortgages or Certificates of Deposit.
+Some transactions in Tracking accounts will only have a single "leg". This is a
+problem because beancount's double-entry bookkeeping requires everything to have
+(at least) two legs.
+
+In this scenario, we don't have enough information to generate a valid beancount
+entry. A warning will be displayed on-screen, giving you some information about
+where to locate the problem. Additionally, the imported data will fail bean-check
+with a "Transaction does not balance" error.
+
+You will need to manually edit the imported data and fix this.
 
 # TODO
 
 * the --since command line option (or server knowledge?)
-* What about repeating transactions? Are those handled properly?
 * YNAB comes with several special accounts. I've only seen the Inflows one used.
     So I'm not sure what's up with the others.
     * Internal Master Category:Inflows
@@ -178,4 +207,7 @@ TODO: explain how reconciling in YNAB fits in with the importer.
 * YNAB creates a special category for credit card payments
     (e.g. *Credit Card Payments:Timo Mastercard*). I haven't looked into how
     exactly that works.
-* Do we just ignore Off-budget accounts?
+* Implement something automagic for "Reconciliation Budget Adjustments"
+    (allow the user to specify an account they get mapped to?)
+* Implement something automagic for Inflows? A way to map based on *payee* to
+    different beancount Income accounts?
