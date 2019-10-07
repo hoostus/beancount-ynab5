@@ -144,6 +144,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if args.since:
         args.since = datetime.datetime.strptime(args.since, "%Y-%m-%d")
+#    if args.since:
+#        args.since = datetime.datetime.strptime(args.since, "%Y-%m-%d")
+    args.since=None
 
     if args.debug:
         log_level = logging.INFO
@@ -168,6 +171,8 @@ if __name__ == '__main__':
     logging.info('Loading YNAB account UUIDs from beancount file')
     account_mapping = build_account_mapping(beancount_entries)
 
+    # BENCHMARK: benchmark vanilla vs. async
+    start_timing = time.time()
     logging.info('Fetching YNAB account metadata')
     ynab_accounts = get_ynab_accounts(auth_header, budget.id)
     logging.info('Fetching YNAB budget category metadata')
@@ -179,6 +184,11 @@ if __name__ == '__main__':
 
     transactions = get_transactions(auth_header, budget.id, since=args.since)
     
+
+    # BENCHMARK: benchmark vanilla vs. async
+    end_timing = time.time()
+    logging.info(f'YNAB http requests took: {end_timing - start_timing}')
+
     # TODO: we can reuse this to make future fetches incremental. Where should we stash this?
     server_knowledge = transactions['server_knowledge']
 
