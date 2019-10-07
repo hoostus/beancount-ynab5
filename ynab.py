@@ -144,8 +144,6 @@ if __name__ == '__main__':
     parser.add_argument('--skip-starting-balances', action='store_true', default=False, help='Ignore any starting balance statements in YNAB.')
     parser.add_argument('--debug', action='store_true', default=False)
     args = parser.parse_args()
-    if args.since:
-        args.since = datetime.datetime.strptime(args.since, "%Y-%m-%d")
 #    if args.since:
 #        args.since = datetime.datetime.strptime(args.since, "%Y-%m-%d")
     args.since=None
