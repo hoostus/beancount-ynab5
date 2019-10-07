@@ -158,6 +158,7 @@ if __name__ == '__main__':
     beancount_entries, beancount_errors, beancount_options = beancount.loader.load_file(args.bean)
     asset_prefix = beancount_options['name_assets']
     expense_prefix = beancount_options['name_expenses']
+    income_prefix = beancount_options['name_income']
 
     logging.info('Loading YNAB IDs for existing transactions in beancount')
     seen_transactions = get_existing_ynab_transaction_ids(beancount_entries)
@@ -211,21 +212,25 @@ if __name__ == '__main__':
         else:
             return ''
 
-    def to_bean(id):
-        if id in ynab_accounts:
-            bean_default = f'{asset_prefix}:{ynab_accounts[id].name}'
-        elif id in ynab_categories:
-            bean_default = f'{expense_prefix}:{fmt_ynab_category(id, ynab_category_groups, ynab_categories)}'
-        else:
-            bean_default = id
-        return account_mapping.get(id, bean_default)
-
     r = [x.id for x in ynab_category_groups.values() if x.name == ynab_normalize('Internal Master Category')]
     assert len(r) == 1
     ynab_internal_master_category_id = r[0]
     r = [x.id for x in ynab_categories.values() if x.name == ynab_normalize('Inflows') and x.category_group_id == ynab_internal_master_category_id]
     assert len(r) == 1
     inflows_category_id = r[0]
+
+    def to_bean(id):
+        if id in ynab_accounts:
+            bean_default = f'{asset_prefix}:{ynab_accounts[id].name}'
+        elif id == inflows_category_id:
+            # special case for the inflows category id
+            bean_default = f'{income_prefix}:{fmt_ynab_category(id, ynab_category_groups, ynab_categories)}'
+        elif id in ynab_categories:
+            bean_default = f'{expense_prefix}:{fmt_ynab_category(id, ynab_category_groups, ynab_categories)}'
+        else:
+            bean_default = id
+        return account_mapping.get(id, bean_default)
+
 
     for t in cleared:
         t = make_transaction(t)
