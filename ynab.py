@@ -235,7 +235,7 @@ def get_existing_ynab_transaction_ids(entries):
     seen = set()
     for e in entries:
         # We don't want to add Nones to the set
-        if isinstance(e, beancount.core.data.Transaction) and e.meta['ynab-id']:
+        if isinstance(e, beancount.core.data.Transaction) and 'ynab-id' in e.meta:
             seen.add(e.meta['ynab-id'])
     return seen
 
