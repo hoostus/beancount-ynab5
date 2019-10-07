@@ -135,10 +135,9 @@ if __name__ == '__main__':
         description="Import from YNAB5 web app to beancount statements."
     )
     parser.add_argument('bean', help='Path to the beancount file.')
-    parser.add_argument('--since', help='Format: YYYY-MM-DD; 2016-12-30. Only process transactions after this date. This will include transactions that occurred exactly on this date.')
+#    parser.add_argument('--since', help='Format: YYYY-MM-DD; 2016-12-30. Only process transactions after this date. This will include transactions that occurred exactly on this date.')
     parser.add_argument('--ynab-token', help='Your YNAB API token.', required=True)
     parser.add_argument('--budget', help='Name of YNAB budget to use. Only needed if you have multiple budgets.')
-    parser.add_argument('--budget-category-prefix', help='Prefix in beancount of YNAB budget categories.', default='Expenses')
     parser.add_argument('--list-ynab-ids', action='store_true', default=False, help='Instead of running normally. Simply list the YNAB ids for each budget category.')
     parser.add_argument('--skip-starting-balances', action='store_true', default=False, help='Ignore any starting balance statements in YNAB.')
     parser.add_argument('--debug', action='store_true', default=False)
