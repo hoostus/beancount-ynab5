@@ -29,24 +29,27 @@ def make_tuple(name, d):
     return namedtuple(name, d.keys())(*d.values())
 
 # TODO: how does the default budget work?
-# (“last-used” can be used to specify the last used budget and “default” can be used if default budget selection is enabled 
-def get_budget(auth, budget=None):
-    response = requests.get(API, headers=auth)
-    response.raise_for_status()
-    d = response.json()
-    budgets = d['data']['budgets']
-    if len(budgets) > 1:
+# (“last-used” can be used to specify the last used budget and “default” can be used if default budget selection is enabled
+
+def budget_from_json(budget, json_budgets):
+    if len(json_budgets) > 1:
         if not budget:
-            raise Exception('No budget specified.', [a['name'] for a in budgets])
+            raise Exception('No budget specified.', [a['name'] for a in json_budgets])
         else:
-            b = [a for a in budgets if a['name'] == budget]
+            b = [a for a in json_budgets if a['name'] == budget]
             if len(b) != 1:
                 raise Exception(f'Could not find any budget with name {budget}.')
             b = b[0]
             return make_budget(b)
     else:
-        b = budgets.values()[0]
+        b = json_budgets.values()[0]
         return make_budget(b)
+
+def get_budget(auth, budget=None):
+    response = requests.get(API, headers=auth)
+    response.raise_for_status()
+    d = response.json()
+    return budget_from_json(budget, d['data']['budgets'])
 
 def get_transactions(auth, budget_id, since=None):
         # TODO: possible query parameters: since_date, type, last_knowledge_of_server
@@ -64,24 +67,27 @@ def build_account_mapping(entries):
                     mapping[entry.meta['ynab-id']] = entry.account
         return mapping
 
-def get_ynab_accounts(auth, budget_id):
+def accounts_from_json(json_accounts):
     result = {}
-    response = requests.get(f'{API}/{budget_id}/accounts', headers=auth)
-    response.raise_for_status()
-    accounts = response.json()['data']['accounts']
-    for a in accounts:
+    for a in json_accounts:
         a['name'] = ynab_normalize(a['name'])
         account = make_tuple('Account', a)
         result[account.id] = account
     return result
 
-def get_ynab_categories(auth, budget_id):
+def get_ynab_accounts(auth, budget_id):
+    result = {}
+    response = requests.get(f'{API}/{budget_id}/accounts', headers=auth)
+    response.raise_for_status()
+    return accounts_from_json(response.json()['data']['accounts'])
+
+def categories_from_json(json_categories):
     category_result = {}
     group_result = {}
-    response = requests.get(f'{API}/{budget_id}/categories', headers=auth)
-    response.raise_for_status()
-    category_groups = response.json()['data']['category_groups']
-    for g in category_groups:
+
+    # categories come as a nested structure with groups at the top
+    # and the actual categories underneath the group level
+    for g in json_categories:
         g['name'] = ynab_normalize(g['name'])
         group = make_tuple('CategoryGroup', g)
         group_result[group.id] = group
@@ -91,6 +97,11 @@ def get_ynab_categories(auth, budget_id):
             category_result[category.id] = category
 
     return group_result, category_result
+
+def get_ynab_categories(auth, budget_id):
+    response = requests.get(f'{API}/{budget_id}/categories', headers=auth)
+    response.raise_for_status()
+    return categories_from_json(response.json()['data']['category_groups'])
 
 def ynab_normalize(name):
     table = str.maketrans('', '', string.punctuation)
@@ -149,7 +160,57 @@ def get_ynab_data(token, budget_name):
     return budget, ynab_accounts, ynab_category_groups, ynab_categories, ynab_transactions
 
 def get_ynab_data_async(token, budget_name):
-    pass
+    import aiohttp
+    import asyncio
+    start_timing = time.time()
+
+    # to actually log in to YNAB we need to add this header to all requests.
+    auth_header = {'Authorization': f'Bearer {token}'}
+
+    async def fetch(url, session):
+        async with session.get(url, headers=auth) as response:
+            return await response.json()
+
+    async def run(r):
+        budget_id = None
+        tasks = []
+
+        async with aiohttp.ClientSession(raise_for_status=True) as session:
+            # We have to load the budget metadata first, to look up the ID
+            # for the budget name we are given
+            async with session.get(API, headers=auth) as response:
+                d = await response.json()
+                b = [a for a in d['data']['budgets'] if a['name'] == budget_name]
+                budget = b[0]
+                budget_id = budget['id']
+
+                # Then we can do the next 3 in parallel.
+                task = asyncio.ensure_future(fetch(f'{API}/{budget_id}/accounts', session))
+                tasks.append(task)
+
+                task = asyncio.ensure_future(fetch(f'{API}/{budget_id}/categories', session))
+                tasks.append(task)
+
+                task = asyncio.ensure_future(fetch(f'{API}/{budget_id}/transactions', session))
+                tasks.append(task)
+
+            responses = await asyncio.gather(*tasks)
+            accounts = responses[0]['data']['accounts']
+            categories = responses[1]['data']['category_groups']
+            transactions = responses[2]['data']['transactions']
+
+            return budget, accounts, categories, transactions
+
+    loop = asyncio.get_event_loop()
+    future = asyncio.ensure_future(run(4))
+    budget, accounts, categories, transactions = loop.run_until_complete(future)
+
+    # BENCHMARK: benchmark vanilla vs. async
+    end_timing = time.time()
+    logging.info(f'YNAB http requests took: {end_timing - start_timing}')
+
+    return budget, ynab_accounts, ynab_category_groups, ynab_categories, ynab_transactions
+
 
 def get_existing_ynab_transaction_ids(entries):
     seen = set()
