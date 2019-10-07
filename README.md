@@ -4,19 +4,22 @@
 
 Table of Contents
 =================
+
+   * [Table of Contents](#table-of-contents)
    * [What it does.](#what-it-does)
    * [Requirements.](#requirements)
    * [Running it.](#running-it)
       * [Get a Personal Access Token for your YNAB account.](#get-a-personal-access-token-for-your-ynab-account)
-      * [YNAB Rate Limits](#ynab-rate-limits)
+      * [YNAB Rate Limits.](#ynab-rate-limits)
    * [Mapping accounts between YNAB and beancount.](#mapping-accounts-between-ynab-and-beancount)
       * [The default algorithm.](#the-default-algorithm)
       * [Add a ynab-id to your beancount accounts.](#add-a-ynab-id-to-your-beancount-accounts)
    * [Skipping 'Starting Balance' statements in YNAB.](#skipping-starting-balance-statements-in-ynab)
-   * [Income](#income)
-      * [Reconciling](#reconciling)
-   * [YNAB's Off Budget (aka Tracking) Accounts](#ynabs-off-budget-aka-tracking-accounts)
-   * [TODO](#todo)
+   * [Income.](#income)
+      * [Reconciling.](#reconciling)
+   * [YNAB's Off Budget (aka Tracking) Accounts.](#ynabs-off-budget-aka-tracking-accounts)
+   * [TODOs.](#todos)
+
 
 
 # What it does.
@@ -77,7 +80,7 @@ The short version: Go to "My Account" then click on "Developer Settings".
 
 Write down the very long token somewhere. You'll need it later.
 
-## YNAB Rate Limits
+## YNAB Rate Limits.
 
 [YNAB enforces rate limits on its API.](https://api.youneedabudget.com/#rate-limiting)
 
@@ -165,7 +168,7 @@ balance.
 You can skip these "Starting Balance" statements during the import by specifying
 the command line option **--skip-starting-balances**.
 
-# Income
+# Income.
 
 The biggest disconnect between YNAB and beancount is how they handle income.
 YNAB doesn't differentiate between different sources of income. They are all just
@@ -179,7 +182,7 @@ At the moment, the importer doesn't do anything smart to help you out. If you
 don't want all of your income to go into a single category, then you will
 need to manually edit the resulting import statements.
 
-## Reconciling
+## Reconciling.
 
 When you reconcile in YNAB, if your cleared balance and your working balance
 don't match up you can select "Create Adjustment & Finish". If you do this,
@@ -198,7 +201,7 @@ A better course is to create an additional transaction that will make the
 cleared balance and working balance match. For instance, create a transaction
 in YNAB that assigns $12 to a "Miscellaneous" expense.
 
-# YNAB's Off Budget (aka Tracking) Accounts
+# YNAB's Off Budget (aka Tracking) Accounts.
 
 YNAB allows you to have Tracking accounts, that aren't part of its normal
 budgeting workflow. These are useful for things like Mortgages or Certificates of Deposit.
@@ -213,7 +216,7 @@ with a "Transaction does not balance" error.
 
 You will need to manually edit the imported data and fix this.
 
-# TODO
+# TODOs.
 
 * Implement the --since command line option (or server knowledge?)
 * YNAB comes with several special accounts. I've only seen the Inflows one used.
