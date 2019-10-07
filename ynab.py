@@ -271,8 +271,11 @@ if __name__ == '__main__':
         log_level = logging.WARN
     logging.basicConfig(format='%(asctime)-15s %(message)s', level=log_level)
 
-    logging.info('Parsing beancount file')
-    beancount_entries, beancount_errors, beancount_options = beancount.loader.load_file(args.bean)
+    logging.info(f'Parsing beancount file {args.bean}')
+    beancount_entries, beancount_errors, beancount_options = beancount.loader.load_file(args.bean, log_errors=sys.stderr)
+    if beancount_errors:
+        sys.exit(1)
+
     asset_prefix = beancount_options['name_assets']
     expense_prefix = beancount_options['name_expenses']
     income_prefix = beancount_options['name_income']
