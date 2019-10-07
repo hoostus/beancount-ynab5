@@ -14,6 +14,10 @@ Why only cleared transactions? This importer doesn't handle updating a transacti
 that you've already imported. By waiting until the transaction is cleared we (hopefully)
 avoid situations where we import something that then later gets updated.
 
+# Requirements.
+
+* requests: https://pypi.org/project/requests/
+
 # Running it.
 
 When you run the script it will output beancount transactions to stdout. You
@@ -47,6 +51,19 @@ Instructions on how to do this are on [YNAB's API website.](https://api.youneeda
 The short version: Go to "My Account" then click on "Developer Settings".
 
 Write down the very long token somewhere. You'll need it later.
+
+## YNAB Rate Limits
+
+[YNAB enforces rate limits on its API.](https://api.youneedabudget.com/#rate-limiting)
+
+> An access token may be used for up to 200 requests per hour.
+> The limit is reset every clock hour. So, if an access token is used at 12:30 PM
+> and for 199 more requests up to 12:45 PM and then hits the limit, any additional
+> requests will be forbidden until 1:00 PM. At 1:00 PM you would have the full
+> 200 requests allowed again, until 2:00 PM.
+
+It shouldn't be an issue in normal usage -- each run of the importer results in
+4 HTTP accesses, so you can run it 50 times an hour -- but just FYI.
 
 # Mapping accounts between YNAB and beancount.
 
