@@ -123,6 +123,34 @@ def get_target_account(txn):
     else:
         return to_bean(txn.transfer_account_id)
 
+def get_ynab_data(token, budget_name):
+    # BENCHMARK: benchmark vanilla vs. async
+    start_timing = time.time()
+
+    # to actually log in to YNAB we need to add this header to all requests.
+    auth_header = {'Authorization': f'Bearer {token}'}
+
+    logging.info('Fetching YNAB budget metadata')
+    budget = get_budget(auth_header, budget=budget_name)
+
+    logging.info('Fetching YNAB account metadata')
+    ynab_accounts = get_ynab_accounts(auth_header, budget.id)
+
+    logging.info('Fetching YNAB budget category metadata')
+    ynab_category_groups, ynab_categories = get_ynab_categories(auth_header, budget.id)
+
+    logging.info('Fetching YNAB transactions')
+    ynab_transactions = get_transactions(auth_header, budget.id, since=args.since)
+
+    # BENCHMARK: benchmark vanilla vs. async
+    end_timing = time.time()
+    logging.info(f'YNAB http requests took: {end_timing - start_timing}')
+
+    return budget, ynab_accounts, ynab_category_groups, ynab_categories, ynab_transactions
+
+def get_ynab_data_async(token, budget_name):
+    pass
+
 def get_existing_ynab_transaction_ids(entries):
     seen = set()
     for e in entries:
@@ -166,33 +194,14 @@ if __name__ == '__main__':
     logging.info('Loading YNAB account UUIDs from beancount file')
     account_mapping = build_account_mapping(beancount_entries)
 
-    # BENCHMARK: benchmark vanilla vs. async
-    start_timing = time.time()
-
-    # to actually log in to YNAB we need to add this header to all requests.
-    auth_header = {'Authorization': f'Bearer {args.ynab_token}'}
-
-    logging.info('Fetching YNAB budget metadata')
-    budget = get_budget(auth_header, budget=args.budget)
-
-    logging.info('Fetching YNAB account metadata')
-    ynab_accounts = get_ynab_accounts(auth_header, budget.id)
-    logging.info('Fetching YNAB budget category metadata')
-    ynab_category_groups, ynab_categories = get_ynab_categories(auth_header, budget.id)
+    budget, ynab_accounts, ynab_category_groups, ynab_categories, ynab_transactions = get_ynab_data(args.ynab_token, args.budget)
 
     if args.list_ynab_ids:
         list_ynab_ids(account_mapping, ynab_accounts, ynab_category_groups, ynab_categories)
         sys.exit(0)
 
-    logging.info('Fetching YNAB transactions')
-    transactions = get_transactions(auth_header, budget.id, since=args.since)
-
-    # BENCHMARK: benchmark vanilla vs. async
-    end_timing = time.time()
-    logging.info(f'YNAB http requests took: {end_timing - start_timing}')
-
     # TODO: we can reuse this to make future fetches incremental. Where should we stash this?
-    # server_knowledge = transactions['server_knowledge']
+    # server_knowledge = ynab_transactions['server_knowledge']
 
     # TODO: how do we get this from YNAB and compare against beancount?
     commodity = budget.currency_format.iso_code
@@ -230,7 +239,7 @@ if __name__ == '__main__':
     # the need to update things we've already downloaded. That is, we want to treat cleared transactions as immutable
     # but uncleared transactions are still mutable.
     # TODO: Is it necessary to skip deleted transactions here?
-    for t in (t for t in transactions if t['cleared'] == 'reconciled' and not t['deleted']):
+    for t in (t for t in ynab_transactions if t['cleared'] == 'reconciled' and not t['deleted']):
         t = make_transaction(t)
 
         if args.skip_starting_balances:
