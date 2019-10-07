@@ -1,4 +1,3 @@
-import requests
 import datetime
 import logging
 from collections import namedtuple
@@ -9,6 +8,9 @@ import string
 
 import beancount.loader
 import beancount.core
+
+import time
+import requests
 
 API = 'https://api.youneedabudget.com/v1/budgets'
 
@@ -154,12 +156,6 @@ if __name__ == '__main__':
         log_level = logging.WARN
     logging.basicConfig(format='%(asctime)-15s %(message)s', level=log_level)
 
-    # to actually log in to YNAB we need to add this header to all requests.
-    auth_header = {'Authorization': f'Bearer {args.ynab_token}'}
-
-    logging.info('Fetching budget metadata')
-    budget = get_budget(auth_header, budget=args.budget)
-
     logging.info('Parsing beancount file')
     beancount_entries, beancount_errors, beancount_options = beancount.loader.load_file(args.bean)
     asset_prefix = beancount_options['name_assets']
@@ -173,6 +169,13 @@ if __name__ == '__main__':
 
     # BENCHMARK: benchmark vanilla vs. async
     start_timing = time.time()
+
+    # to actually log in to YNAB we need to add this header to all requests.
+    auth_header = {'Authorization': f'Bearer {args.ynab_token}'}
+
+    logging.info('Fetching budget metadata')
+    budget = get_budget(auth_header, budget=args.budget)
+
     logging.info('Fetching YNAB account metadata')
     ynab_accounts = get_ynab_accounts(auth_header, budget.id)
     logging.info('Fetching YNAB budget category metadata')
@@ -183,7 +186,6 @@ if __name__ == '__main__':
         sys.exit(0)
 
     transactions = get_transactions(auth_header, budget.id, since=args.since)
-    
 
     # BENCHMARK: benchmark vanilla vs. async
     end_timing = time.time()
