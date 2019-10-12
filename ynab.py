@@ -254,7 +254,8 @@ if __name__ == '__main__':
     parser.add_argument('--budget', help='Name of YNAB budget to use. Only needed if you have multiple budgets.')
     parser.add_argument('--list-ynab-ids', action='store_true', default=False, help='Instead of running normally. Simply list the YNAB ids for each budget category.')
     parser.add_argument('--skip-starting-balances', action='store_true', default=False, help='Ignore any starting balance statements in YNAB.')
-    parser.add_argument('--debug', action='store_true', default=False, help='Print logging to stderr.')
+    parser.add_argument('--debug', action='store_true', default=False, help='Print debugging logging to stderr.')
+    parser.add_argument('--verbose', action='store_true', default=False, help='Mildly verbose logging to stderr.')
     parser.add_argument('--enable-async-fetch', '--disable-async-fetch', dest='async_fetch', action=NegateAction, default=(aiohttp is not None), nargs=0, help='Use aiohttp to fetch YNAB data in parallel.')
     args = parser.parse_args()
 #    if args.since:
@@ -265,13 +266,15 @@ if __name__ == '__main__':
         logging.error('Cannot specify --async-fetch if aiohttp is not installed.')
         sys.exit(1)
 
-    if args.debug:
+    if args.verbose:
         log_level = logging.INFO
+    elif args.debug:
+        log_level = logging.DEBUG
     else:
         log_level = logging.WARN
     logging.basicConfig(format='%(asctime)-15s %(message)s', level=log_level)
 
-    logging.info(f'Parsing beancount file {args.bean}')
+    logging.debug(f'Parsing beancount file {args.bean}')
     beancount_entries, beancount_errors, beancount_options = beancount.loader.load_file(args.bean, log_errors=sys.stderr)
     if beancount_errors:
         sys.exit(1)
@@ -280,10 +283,10 @@ if __name__ == '__main__':
     expense_prefix = beancount_options['name_expenses']
     income_prefix = beancount_options['name_income']
 
-    logging.info('Loading YNAB IDs for existing transactions in beancount')
+    logging.debug('Loading YNAB IDs for existing transactions in beancount')
     seen_transactions = get_existing_ynab_transaction_ids(beancount_entries)
 
-    logging.info('Loading YNAB account UUIDs from beancount file')
+    logging.debug('Loading YNAB account UUIDs from beancount file')
     account_mapping = build_account_mapping(beancount_entries)
 
     if args.async_fetch:
@@ -332,6 +335,8 @@ if __name__ == '__main__':
             bean_default = id
         return account_mapping.get(id, bean_default)
 
+    count = 0
+
     # We only import transactions once they have been reconciled on YNAB. This hopefully removes
     # the need to update things we've already downloaded. That is, we want to treat cleared transactions as immutable
     # but uncleared transactions are still mutable.
@@ -342,12 +347,12 @@ if __name__ == '__main__':
         if args.skip_starting_balances:
             # This will skip starting balances in budget accounts but not tracking accounts
             if t.payee_name == 'Starting Balance' and t.category_id == inflows_category_id:
-                logging.info(f'Skipping Starting Balance statement in budget account: {t.date} {to_bean(t.account_id)}')
+                logging.debug(f'Skipping Starting Balance statement in budget account: {t.date} {to_bean(t.account_id)}')
                 continue
             # We also want to skip starting balances in tracking accounts. Tracking
             # accounts won't have a category id
             if t.payee_name == 'Starting Balance' and not t.category_id:
-                logging.info(f'Skipping Starting Balance statement in tracking account: {t.date} {to_bean(t.account_id)}')
+                logging.debug(f'Skipping Starting Balance statement in tracking account: {t.date} {to_bean(t.account_id)}')
                 continue
 
         if not t.category_id and not t.transfer_account_id:
@@ -360,14 +365,13 @@ if __name__ == '__main__':
 
         # Deduplication -- don't process transactions we've already seen
         if t.id in seen_transactions:
-            logging.info(f'Skipping duplicate transaction: {t.date} {t.payee_name}')
+            logging.debug(f'Skipping duplicate transaction: {t.date} {t.payee_name}')
             continue
         if t.transfer_transaction_id in seen_transactions:
-            logging.info(f'Skipping duplicate transfer transaction: {t.date} {t.payee_name}')
+            logging.debug(f'Skipping duplicate transfer transaction: {t.date} {t.payee_name}')
             continue
 
-        # TODO: how to deal with income?
-
+        count += 1
         print(f'{t.date} * "{t.payee_name}" {fmt_memo(t.memo)}')
         print(f'  ynab-id: "{t.id}"')
         # To avoid duplicate imports for transfers we need to account for
@@ -388,3 +392,5 @@ if __name__ == '__main__':
             print(f'  {get_target_account(t)}')
 
         print()
+
+    logging.info(f'Imported {count} new transactions.')
