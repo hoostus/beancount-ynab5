@@ -68,8 +68,10 @@ def get_budget(auth, budget=None):
 # converted namedtuples. Should we change this to do the same? Make this a
 # generator?
 def get_transactions(auth, budget_id, since=None):
-    # TODO: possible query parameters: since_date, type, last_knowledge_of_server
-    response = requests.get(f'{API}/{budget_id}/transactions', headers=auth)
+    if since:
+        response = requests.get(f'{API}/{budget_id}/transactions?since_date={since}', headers=auth)
+    else:
+        response = requests.get(f'{API}/{budget_id}/transactions', headers=auth)
     response.raise_for_status()
     transactions = response.json()
 #    with open('txn.json', 'w+') as f:
@@ -249,7 +251,7 @@ if __name__ == '__main__':
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument('bean', help='Path to the beancount file.')
-#    parser.add_argument('--since', help='Format: YYYY-MM-DD; 2016-12-30. Only process transactions after this date. This will include transactions that occurred exactly on this date.')
+    parser.add_argument('--since', help='Format: YYYY-MM-DD; 2016-12-30. Only process transactions after this date. This will include transactions that occurred exactly on this date.')
     parser.add_argument('--ynab-token', help='Your YNAB API token.', required=True)
     parser.add_argument('--budget', help='Name of YNAB budget to use. Only needed if you have multiple budgets.')
     parser.add_argument('--list-ynab-ids', action='store_true', default=False, help='Instead of running normally. Simply list the YNAB ids for each budget category.')
@@ -258,9 +260,8 @@ if __name__ == '__main__':
     parser.add_argument('--verbose', action='store_true', default=False, help='Mildly verbose logging to stderr.')
     parser.add_argument('--enable-async-fetch', '--disable-async-fetch', dest='async_fetch', action=NegateAction, default=(aiohttp is not None), nargs=0, help='Use aiohttp to fetch YNAB data in parallel.')
     args = parser.parse_args()
-#    if args.since:
-#        args.since = datetime.datetime.strptime(args.since, "%Y-%m-%d")
-    args.since=None
+    if args.since:
+       args.since = datetime.datetime.strptime(args.since, "%Y-%m-%d").date()
 
     if args.async_fetch and not aiohttp:
         logging.error('Cannot specify --async-fetch if aiohttp is not installed.')
