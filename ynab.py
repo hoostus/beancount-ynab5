@@ -150,10 +150,12 @@ def list_ynab_ids(account_mapping, accounts, groups, categories):
     pretty_print(categories, formatter=lambda x: fmt_ynab_category(x.id, groups, categories))
 
 def get_target_account(txn, adjustment_account):
-    if (txn.payee_name == 'Reconciliation Balance Adjustment'
+    # subtransactions don't have a payee_name attribute, so we do this roundabout
+    # check instead....
+    if (getattr(txn, 'payee_name', None) == 'Reconciliation Balance Adjustment'
         and txn.memo == 'Entered automatically by YNAB'
         and adjustment_account):
-        logging.info(f'Using {adjustment_account} for reconciliation balance adjustment.')
+        logging.info(f'Using {adjustment_account} for reconciliation balance adjustment on transaction {txn.id}.')
         return adjustment_account
     elif txn.category_id:
         return to_bean(txn.category_id)
