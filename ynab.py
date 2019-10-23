@@ -149,8 +149,13 @@ def list_ynab_ids(account_mapping, accounts, groups, categories):
     pretty_print(accounts, formatter=lambda x: x.name)
     pretty_print(categories, formatter=lambda x: fmt_ynab_category(x.id, groups, categories))
 
-def get_target_account(txn):
-    if txn.category_id:
+def get_target_account(txn, adjustment_account):
+    if (txn.payee_name == 'Reconciliation Balance Adjustment'
+        and txn.memo == 'Entered automatically by YNAB'
+        and adjustment_account):
+        logging.info(f'Using {adjustment_account} for reconciliation balance adjustment.')
+        return adjustment_account
+    elif txn.category_id:
         return to_bean(txn.category_id)
     elif txn.transfer_account_id:
         return to_bean(txn.transfer_account_id)
@@ -392,11 +397,11 @@ if __name__ == '__main__':
                 # we have to reverse the sign on the amount of the subtransaction because YNAB's value
                 # is telling us "decrease the budget by this amount" but beancount wants us to say
                 # "increase our expenses by this amount"
-                print(f'  {get_target_account(sub):<50}{-from_milli(sub.amount):>10} {commodity} ; {sub.memo}')
+                print(f'  {get_target_account(sub, args.balance_adjustment_account):<50}{-from_milli(sub.amount):>10} {commodity} ; {sub.memo}')
                 # We need to deduplicate any transfers that happen in a subtransaction...
                 if sub.transfer_transaction_id: seen_transactions.add(sub.transfer_transaction_id)
         else:
-            print(f'  {get_target_account(t)}')
+            print(f'  {get_target_account(t, args.balance_adjustment_account)}')
 
         print()
 

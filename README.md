@@ -201,6 +201,9 @@ A better course is to create an additional transaction that will make the
 cleared balance and working balance match. For instance, create a transaction
 in YNAB that assigns $12 to a "Miscellaneous" expense.
 
+You can also automatically remap this to another account by using the
+**--balance-adjustment-account** command line option.
+
 # YNAB's Off Budget (aka Tracking) Accounts.
 
 YNAB allows you to have Tracking accounts, that aren't part of its normal
@@ -218,7 +221,6 @@ You will need to manually edit the imported data and fix this.
 
 # TODOs.
 
-* Implement the --since command line option (or server knowledge?)
 * YNAB comes with several special accounts. I've only seen the Inflows one used.
     So I'm not sure what's up with the others.
     * Internal Master Category:Inflows
@@ -227,7 +229,5 @@ You will need to manually edit the imported data and fix this.
 * YNAB creates a special category for credit card payments
     (e.g. *Credit Card Payments:Timo Mastercard*). I haven't looked into how
     exactly that works.
-* Implement something automagic for "Reconciliation Budget Adjustments"
-    (allow the user to specify an account they get mapped to?)
 * Implement something automagic for Inflows? A way to map based on *payee* to
     different beancount Income accounts?
