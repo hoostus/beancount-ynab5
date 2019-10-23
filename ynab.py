@@ -69,6 +69,7 @@ def get_budget(auth, budget=None):
 # generator?
 def get_transactions(auth, budget_id, since=None):
     if since:
+        logging.info(f'Only fetching transactions since {since}.')
         response = requests.get(f'{API}/{budget_id}/transactions?since_date={since}', headers=auth)
     else:
         response = requests.get(f'{API}/{budget_id}/transactions', headers=auth)
@@ -158,7 +159,7 @@ def get_target_account(txn):
         # a valid beancount entry, so we generate an error mesage.
         return '; FIXME. Error could only generate one leg from YNAB data.'
 
-def get_ynab_data(token, budget_name):
+def get_ynab_data(token, budget_name, since):
     logging.info('Using regular fetcher for YNAB')
     # BENCHMARK: benchmark vanilla vs. async
     start_timing = time.time()
@@ -176,7 +177,7 @@ def get_ynab_data(token, budget_name):
     ynab_category_groups, ynab_categories = get_ynab_categories(auth_header, budget.id)
 
     logging.info('Fetching YNAB transactions')
-    ynab_transactions = get_transactions(auth_header, budget.id, since=args.since)
+    ynab_transactions = get_transactions(auth_header, budget.id, since=since)
 
     # BENCHMARK: benchmark vanilla vs. async
     end_timing = time.time()
@@ -184,7 +185,7 @@ def get_ynab_data(token, budget_name):
 
     return budget, ynab_accounts, ynab_category_groups, ynab_categories, ynab_transactions
 
-def get_ynab_data_async(token, budget_name):
+def get_ynab_data_async(token, budget_name, since):
     logging.info('Using asynchronous fetcher for YNAB')
     start_timing = time.time()
 
@@ -213,7 +214,11 @@ def get_ynab_data_async(token, budget_name):
                 task = asyncio.ensure_future(fetch(f'{API}/{budget.id}/categories', session))
                 tasks.append(task)
 
-                task = asyncio.ensure_future(fetch(f'{API}/{budget.id}/transactions', session))
+                if since:
+                    logging.info(f'Only fetching transactions since {since}.')
+                    task = asyncio.ensure_future(fetch(f'{API}/{budget.id}/transactions?since_date={since}', session))
+                else:
+                    task = asyncio.ensure_future(fetch(f'{API}/{budget.id}/transactions', session))
                 tasks.append(task)
 
             responses = await asyncio.gather(*tasks)
@@ -259,6 +264,7 @@ if __name__ == '__main__':
     parser.add_argument('--debug', action='store_true', default=False, help='Print debugging logging to stderr.')
     parser.add_argument('--verbose', action='store_true', default=False, help='Mildly verbose logging to stderr.')
     parser.add_argument('--enable-async-fetch', '--disable-async-fetch', dest='async_fetch', action=NegateAction, default=(aiohttp is not None), nargs=0, help='Use aiohttp to fetch YNAB data in parallel.')
+    parser.add_argument('--balance-adjustment-account', help='Account to assign all automatically entered reconciliation balance adjustments.')
     args = parser.parse_args()
     if args.since:
        args.since = datetime.datetime.strptime(args.since, "%Y-%m-%d").date()
@@ -295,7 +301,7 @@ if __name__ == '__main__':
     else:
         fetcher = get_ynab_data
 
-    budget, ynab_accounts, ynab_category_groups, ynab_categories, ynab_transactions = fetcher(args.ynab_token, args.budget)
+    budget, ynab_accounts, ynab_category_groups, ynab_categories, ynab_transactions = fetcher(args.ynab_token, args.budget, args.since)
 
     if args.list_ynab_ids:
         list_ynab_ids(account_mapping, ynab_accounts, ynab_category_groups, ynab_categories)
