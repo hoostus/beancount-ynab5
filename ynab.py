@@ -162,38 +162,38 @@ def get_target_account(txn, adjustment_account):
     elif txn.transfer_account_id:
         return to_bean(txn.transfer_account_id)
     else:
-        # This can only happen with Tracking accounts. We can't generate
+        # This can only happen with YNAB's Tracking accounts. We can't generate
         # a valid beancount entry, so we generate an error mesage.
         return '; FIXME. Error could only generate one leg from YNAB data.'
 
 def get_ynab_data(token, budget_name, since):
-    logging.info('Using regular fetcher for YNAB')
+    logging.info('Using regular fetcher for YNAB.')
     # BENCHMARK: benchmark vanilla vs. async
     start_timing = time.time()
 
     # to actually log in to YNAB we need to add this header to all requests.
     auth_header = {'Authorization': f'Bearer {token}'}
 
-    logging.info('Fetching YNAB budget metadata')
+    logging.info('Fetching YNAB budget metadata.')
     budget = get_budget(auth_header, budget=budget_name)
 
-    logging.info('Fetching YNAB account metadata')
+    logging.info('Fetching YNAB account metadata.')
     ynab_accounts = get_ynab_accounts(auth_header, budget.id)
 
-    logging.info('Fetching YNAB budget category metadata')
+    logging.info('Fetching YNAB budget category metadata.')
     ynab_category_groups, ynab_categories = get_ynab_categories(auth_header, budget.id)
 
-    logging.info('Fetching YNAB transactions')
+    logging.info('Fetching YNAB transactions.')
     ynab_transactions = get_transactions(auth_header, budget.id, since=since)
 
     # BENCHMARK: benchmark vanilla vs. async
     end_timing = time.time()
-    logging.info(f'YNAB http requests took: {end_timing - start_timing}')
+    logging.info(f'YNAB http requests took: {end_timing - start_timing}.')
 
     return budget, ynab_accounts, ynab_category_groups, ynab_categories, ynab_transactions
 
 def get_ynab_data_async(token, budget_name, since):
-    logging.info('Using asynchronous fetcher for YNAB')
+    logging.info('Using asynchronous fetcher for YNAB.')
     start_timing = time.time()
 
     # to actually log in to YNAB we need to add this header to all requests.
