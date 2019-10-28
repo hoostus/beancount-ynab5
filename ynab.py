@@ -13,6 +13,8 @@ import beancount.core
 import time
 import asyncio
 
+import tempfile
+
 try:
     import requests
 except ImportError:
@@ -47,13 +49,15 @@ def make_tuple(name, d):
 def budget_from_json(budget, json_budgets):
     if len(json_budgets) > 1:
         if not budget:
-            raise Exception('No budget specified.', [a['name'] for a in json_budgets])
-        else:
-            b = [a for a in json_budgets if a['name'] == budget]
-            if len(b) != 1:
-                raise Exception(f'Could not find any budget with name {budget}.')
-            b = b[0]
-            return make_budget(b)
+            budgets = [a['name'] for a in json_budgets]
+            budget = budgets[0]
+            logging.warning(f'Multiple YNAB budgets found: {budgets}. Using first available: "{budget}"')
+
+        b = [a for a in json_budgets if a['name'] == budget]
+        if len(b) != 1:
+            raise Exception(f'Could not find any budget with name {budget}.')
+        b = b[0]
+        return make_budget(b)
     else:
         b = json_budgets.values()[0]
         return make_budget(b)
@@ -250,7 +254,7 @@ if __name__ == '__main__':
         description="Import from YNAB5 web app to beancount statements.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument('bean', help='Path to the beancount file.')
+    parser.add_argument('bean', help='Path to the beancount file.', nargs='?', default=None)
     parser.add_argument('--since', help='Format: YYYY-MM-DD; 2016-12-30. Only process transactions after this date. This will include transactions that occurred exactly on this date.')
     parser.add_argument('--ynab-token', help='Your YNAB API token.', required=True)
     parser.add_argument('--budget', help='Name of YNAB budget to use. Only needed if you have multiple budgets.')
@@ -266,6 +270,18 @@ if __name__ == '__main__':
     if args.async_fetch and not aiohttp:
         logging.error('Cannot specify --async-fetch if aiohttp is not installed.')
         sys.exit(1)
+
+    if not args.bean:
+        # Beancount-ynab5 requires a bean file to be passed on the CLI.
+        # It passes this file to beancount.loader.load_file and
+        # expects a 3-tuple returned, [entries,errors,options].
+        # Changing to accommodate no file is tricky
+        # The following provides a workaround.
+
+        # beancount.loader.load_file can handle an empty file, so this passes
+        # handling of the no-file problem to beancount
+        TFILE = tempfile.NamedTemporaryFile() # Init as a separate CONST
+        args.bean = TFILE.name
 
     if args.verbose:
         log_level = logging.INFO
