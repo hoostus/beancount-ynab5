@@ -12,6 +12,7 @@ import beancount.core
 
 import time
 import asyncio
+import tempfile
 
 try:
     import requests
@@ -262,7 +263,7 @@ if __name__ == '__main__':
         description="Import from YNAB5 web app to beancount statements.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument('bean', help='Path to the beancount file.')
+    parser.add_argument('bean', help='Path to the beancount file.', nargs='?', default=None)
     parser.add_argument('--since', help='Format: YYYY-MM-DD; 2016-12-30. Only process transactions after this date. This will include transactions that occurred exactly on this date.')
     parser.add_argument('--ynab-token', help='Your YNAB API token.', required=True)
     parser.add_argument('--budget', help='Name of YNAB budget to use. Only needed if you have multiple budgets.')
@@ -280,6 +281,21 @@ if __name__ == '__main__':
         logging.error('Cannot specify --async-fetch if aiohttp is not installed.')
         sys.exit(1)
 
+    if not args.bean:
+        # Beancount-ynab5 requires a bean file to be passed on the CLI.
+        # It passes this file to beancount.loader.load_file and
+        # expects a 3-tuple returned, [entries,errors,options].
+        # Changing to accommodate no file is tricky
+        # The following provides a workaround.
+
+        # beancount.loader.load_file can handle an empty file, so this passes
+        # handling of the no-file problem to beancount
+        tempfile = tempfile.NamedTemporaryFile()
+        args.bean = tempfile.name
+
+    # structuring it this way means we can specify --verbose AND --debug and it will
+    # end up picking the most verbose (i.e. debug)
+    log_level = logging.WARN
     if args.verbose:
         log_level = logging.INFO
     if args.debug:

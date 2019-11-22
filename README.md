@@ -72,6 +72,14 @@ In order to get access to your YNAB budget you need to have a Personal Access
 Token and provide it to the importer on the command line with the **--ynab-token**
 option.
 
+## Notes on running it.
+
+You don't actually have to specify a beancount file, it is optional. If no
+beancount file is provided, this is equivalent to an empty beancount file.
+
+If you have multiple budgets in YNAB, you *must* specify which one to use. If
+you only have a single budget, then this parameter can be omitted.
+
 ## Get a Personal Access Token for your YNAB account.
 
 Instructions on how to do this are on [YNAB's API website.](https://api.youneedabudget.com/)
