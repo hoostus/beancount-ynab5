@@ -23,7 +23,7 @@ try:
 except ImportError:
     aiohttp = None
 
-assert requests or aiohhtp, "Must have either the requests module installed or the aiohttp module isntalled."
+assert requests or aiohhtp, "Must have either the requests module installed or the aiohttp module installed."
 
 API = 'https://api.youneedabudget.com/v1/budgets'
 
