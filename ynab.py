@@ -282,10 +282,8 @@ if __name__ == '__main__':
 
     if args.verbose:
         log_level = logging.INFO
-    elif args.debug:
+    if args.debug:
         log_level = logging.DEBUG
-    else:
-        log_level = logging.WARN
     logging.basicConfig(format='%(asctime)-15s %(message)s', level=log_level)
 
     logging.debug(f'Parsing beancount file {args.bean}')
