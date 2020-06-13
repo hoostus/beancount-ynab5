@@ -56,7 +56,7 @@ def budget_from_json(budget, json_budgets):
             b = b[0]
             return make_budget(b)
     else:
-        b = json_budgets.values()[0]
+        b = json_budgets[0]
         return make_budget(b)
 
 def get_budget(auth, budget=None):
