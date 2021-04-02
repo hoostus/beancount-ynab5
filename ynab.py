@@ -347,7 +347,7 @@ if __name__ == '__main__':
     r = [x.id for x in ynab_category_groups.values() if x.name == ynab_normalize('Internal Master Category')]
     assert len(r) == 1
     ynab_internal_master_category_id = r[0]
-    r = [x.id for x in ynab_categories.values() if x.name == ynab_normalize('Inflows') and x.category_group_id == ynab_internal_master_category_id]
+    r = [x.id for x in ynab_categories.values() if x.name == 'Inflow-To-be-Budgeted' and x.category_group_id == ynab_internal_master_category_id]
     assert len(r) == 1
     inflows_category_id = r[0]
 
