@@ -3,7 +3,6 @@ import logging
 from collections import namedtuple
 from decimal import Decimal
 import sys
-import re
 import string
 import argparse
 
@@ -27,6 +26,7 @@ except ImportError:
 assert requests or aiohttp, "Must have either the requests module installed or the aiohttp module installed."
 
 API = 'https://api.youneedabudget.com/v1/budgets'
+INFLOW_CATEGORY = 'Inflow-Ready-to-Assign'
 
 def make_budget(n):
     c = n['currency_format']
@@ -347,8 +347,9 @@ if __name__ == '__main__':
     r = [x.id for x in ynab_category_groups.values() if x.name == ynab_normalize('Internal Master Category')]
     assert len(r) == 1
     ynab_internal_master_category_id = r[0]
-    r = [x.id for x in ynab_categories.values() if x.name == 'Inflow-To-be-Budgeted' and x.category_group_id == ynab_internal_master_category_id]
-    assert len(r) == 1
+    master_categories = [(x.id, x.name) for x in ynab_categories.values() if x.category_group_id == ynab_internal_master_category_id]
+    r = [x[0] for x in master_categories if x[1] == INFLOW_CATEGORY]
+    assert len(r) == 1, f"Didn't find expected inflow category '{INFLOW_CATEGORY}' in {master_categories}"
     inflows_category_id = r[0]
 
     def to_bean(id):
