@@ -291,6 +291,9 @@ if __name__ == '__main__':
 
         # beancount.loader.load_file can handle an empty file, so this passes
         # handling of the no-file problem to beancount
+
+        # n.b. This doesn't work on Windows :-( so you need
+        # to specify a beanfile when using Windows.
         tempfile = tempfile.NamedTemporaryFile()
         args.bean = tempfile.name
 
