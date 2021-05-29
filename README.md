@@ -41,7 +41,7 @@ avoid situations where we import something that then later gets updated.
 
 You must have *one* of these installed. You don't need both. If you have
 aiohttp installed, then the importer will make parallel requests to YNAB,
-which speeds things up somewht.
+which speeds things up somewhat.
 
 The command line options **--enable-async-fetch** and **--disable-async-fetch**
 will allow you to override the default behaviour.
