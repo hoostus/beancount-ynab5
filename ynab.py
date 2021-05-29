@@ -273,6 +273,7 @@ if __name__ == '__main__':
     parser.add_argument('--verbose', action='store_true', default=False, help='Mildly verbose logging to stderr.')
     parser.add_argument('--enable-async-fetch', '--disable-async-fetch', dest='async_fetch', action=NegateAction, default=(aiohttp is not None), nargs=0, help='Use aiohttp to fetch YNAB data in parallel.')
     parser.add_argument('--balance-adjustment-account', help='Account to assign all automatically entered reconciliation balance adjustments.')
+    parser.add_argument('--account-id', action='append', help='Only fetch transactions from this account. Can be specified multiple times to fetch from multiple accounts.')
     args = parser.parse_args()
     if args.since:
        args.since = datetime.datetime.strptime(args.since, "%Y-%m-%d").date()
@@ -372,6 +373,10 @@ if __name__ == '__main__':
     # TODO: Is it necessary to skip deleted transactions here?
     for t in (t for t in ynab_transactions if t['cleared'] == 'reconciled' and not t['deleted']):
         t = make_transaction(t)
+
+        if args.account_id and t.account_id not in args.account_id:
+            logging.debug(f'Skipping transaction from account {t.account_id}.')
+            continue
 
         if args.skip_starting_balances:
             # This will skip starting balances in budget accounts but not tracking accounts
